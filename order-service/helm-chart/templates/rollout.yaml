@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: order-svc-{{ .Values.version }}
+  labels:
+    app: order-svc
+    version: {{ .Values.version }}  # "blue" or "green"
+spec:
+  replicas: {{ .Values.replicas }}
+  strategy:
+    blue:
+      maxUnavailable: 0  # Zero-downtime requirement
+      maxSurge: 30%
+  selector:
+    matchLabels:
+      app: order-svc
+      version: {{ .Values.version }}
+  template:
+    metadata:
+      labels:
+        app: order-svc
+        version: {{ .Values.version }}
+    spec:
+      containers:
+      - name: order-svc
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        ports:
+        - name: http
+          containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: {{ .Values.resources.requests.cpu }}
+            memory: {{ .Values.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.resources.limits.cpu }}
+            memory: {{ .Values.resources.limits.memory }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - order-svc
+              topologyKey: kubernetes.io/hostname

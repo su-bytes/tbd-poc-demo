@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: order-svc-blue
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/su-bytes/tbd-poc-demo/order-service.git
+    targetRevision: main  # Always main (trunk-based)
+    path: helm-chart
+    helm:
+      values: |
+        version: blue
+        image.tag: v2.1.0  # Latest commit SHA or semver
+        replicas: 3
+        activeVersion: blue  # Traffic directed here
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+  revisionHistoryLimit: 10
